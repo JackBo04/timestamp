@@ -6,6 +6,5 @@
   "description": "快速插入各种格式的时间戳，支持按地区分组管理",
   "author": "Autumn",
   "authorUrl": "https://github.com/JackBo04",
-  "repo": "JackBo04/timestamp",
-  "js": "main.js"
+  "isDesktopOnly": false
 }
