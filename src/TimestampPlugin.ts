@@ -1,5 +1,5 @@
 import { Plugin, PluginSettingTab, Setting, App, Notice } from 'obsidian';
-import { formatTimestamp, FormatId, FormatConfig, PluginSettings, DEFAULT_SETTINGS } from './formats';
+import { formatTimestamp, FormatId, PluginSettings, DEFAULT_SETTINGS } from './formats';
 
 export default class TimestampPlugin extends Plugin {
   settings: PluginSettings = DEFAULT_SETTINGS;
@@ -49,8 +49,13 @@ export default class TimestampPlugin extends Plugin {
   }
 
   insertTimestamp(formatId: FormatId): void {
-    // @ts-ignore
-    const editor = this.app.workspace.activeLeaf?.view?.editor;
+    // Use getActiveViewOfType to get the active markdown view
+    // @ts-ignore - editor property exists on MarkdownView but not in type definitions
+    const view = this.app.workspace.getActiveViewOfType(
+      // @ts-ignore - View constructor not exposed in types
+      this.app.workspace.activeLeaf?.view?.constructor
+    );
+    const editor = view?.editor;
     if (!editor) {
       new Notice('无法获取编辑器');
       return;
@@ -72,7 +77,7 @@ class TimestampSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Timestamp' });
+    new Setting(containerEl).setName('Timestamp').setHeading();
 
     // Default format - only show enabled formats
     new Setting(containerEl)
@@ -85,7 +90,7 @@ class TimestampSettingTab extends PluginSettingTab {
         dropdown.setValue(this.plugin.settings.defaultFormat);
         dropdown.onChange(value => {
           this.plugin.settings.defaultFormat = value as FormatId;
-          this.plugin.saveSettings();
+          void this.plugin.saveSettings();
         });
       });
 
@@ -95,12 +100,11 @@ class TimestampSettingTab extends PluginSettingTab {
       const formats = this.plugin.settings.formats.filter(f => f.group === group);
       if (formats.length === 0) return;
 
-      containerEl.createEl('h3', { text: group }).style.marginTop = '16px';
+      new Setting(containerEl).setName(group).setHeading();
 
-      formats.forEach((format, idx) => {
+      formats.forEach((format) => {
         const arr = this.plugin.settings.formats;
         const realIdx = arr.findIndex(f => f.id === format.id);
-        const tab = this;
 
         new Setting(containerEl)
           .setName(format.name)
@@ -108,19 +112,17 @@ class TimestampSettingTab extends PluginSettingTab {
           .addToggle(toggle => {
             toggle.setValue(format.enabled);
             toggle.onChange(value => {
-              tab.plugin.settings.formats[realIdx].enabled = value;
-              tab.plugin.saveSettings();
-              tab.display();
+              this.plugin.settings.formats[realIdx].enabled = value;
+              void this.plugin.saveSettings();
+              this.display();
             });
           });
       });
     });
 
     // Hotkey hint
-    const hint = containerEl.createEl('div');
-    hint.style.color = 'var(--text-muted)';
-    hint.style.fontSize = '0.9em';
-    hint.style.marginTop = '20px';
-    hint.innerHTML = '💡 为不同格式设置快捷键：设置 → 快捷键 → 搜索 "timestamp"<br>每个启用的格式都可以单独绑定快捷键';
+    new Setting(containerEl)
+      .setName('💡 提示')
+      .setDesc('为不同格式设置快捷键：设置 → 快捷键 → 搜索 "timestamp"\n每个启用的格式都可以单独绑定快捷键');
   }
 }

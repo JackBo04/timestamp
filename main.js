@@ -169,7 +169,11 @@ var TimestampPlugin = class extends import_obsidian.Plugin {
     this.buildCommands();
   }
   insertTimestamp(formatId) {
-    const editor = this.app.workspace.activeLeaf?.view?.editor;
+    const view = this.app.workspace.getActiveViewOfType(
+      // @ts-ignore - View constructor not exposed in types
+      this.app.workspace.activeLeaf?.view?.constructor
+    );
+    const editor = view?.editor;
     if (!editor) {
       new import_obsidian.Notice("\u65E0\u6CD5\u83B7\u53D6\u7F16\u8F91\u5668");
       return;
@@ -186,13 +190,13 @@ var TimestampSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Timestamp" });
+    new import_obsidian.Setting(containerEl).setName("Timestamp").setHeading();
     new import_obsidian.Setting(containerEl).setName("\u9ED8\u8BA4\u683C\u5F0F").setDesc("\u6309\u4E0B\u5FEB\u6377\u952E\u65F6\u63D2\u5165\u7684\u683C\u5F0F").addDropdown((dropdown) => {
       this.plugin.settings.formats.filter((f) => f.enabled).forEach((f) => dropdown.addOption(f.id, `${f.name} (${f.group})`));
       dropdown.setValue(this.plugin.settings.defaultFormat);
       dropdown.onChange((value) => {
         this.plugin.settings.defaultFormat = value;
-        this.plugin.saveSettings();
+        void this.plugin.saveSettings();
       });
     });
     const groups = ["CN", "US", "EU", "\u901A\u7528"];
@@ -200,26 +204,21 @@ var TimestampSettingTab = class extends import_obsidian.PluginSettingTab {
       const formats = this.plugin.settings.formats.filter((f) => f.group === group);
       if (formats.length === 0)
         return;
-      containerEl.createEl("h3", { text: group }).style.marginTop = "16px";
-      formats.forEach((format, idx) => {
+      new import_obsidian.Setting(containerEl).setName(group).setHeading();
+      formats.forEach((format) => {
         const arr = this.plugin.settings.formats;
         const realIdx = arr.findIndex((f) => f.id === format.id);
-        const tab = this;
         new import_obsidian.Setting(containerEl).setName(format.name).setDesc(format.example).addToggle((toggle) => {
           toggle.setValue(format.enabled);
           toggle.onChange((value) => {
-            tab.plugin.settings.formats[realIdx].enabled = value;
-            tab.plugin.saveSettings();
-            tab.display();
+            this.plugin.settings.formats[realIdx].enabled = value;
+            void this.plugin.saveSettings();
+            this.display();
           });
         });
       });
     });
-    const hint = containerEl.createEl("div");
-    hint.style.color = "var(--text-muted)";
-    hint.style.fontSize = "0.9em";
-    hint.style.marginTop = "20px";
-    hint.innerHTML = '\u{1F4A1} \u4E3A\u4E0D\u540C\u683C\u5F0F\u8BBE\u7F6E\u5FEB\u6377\u952E\uFF1A\u8BBE\u7F6E \u2192 \u5FEB\u6377\u952E \u2192 \u641C\u7D22 "timestamp"<br>\u6BCF\u4E2A\u542F\u7528\u7684\u683C\u5F0F\u90FD\u53EF\u4EE5\u5355\u72EC\u7ED1\u5B9A\u5FEB\u6377\u952E';
+    new import_obsidian.Setting(containerEl).setName("\u{1F4A1} \u63D0\u793A").setDesc('\u4E3A\u4E0D\u540C\u683C\u5F0F\u8BBE\u7F6E\u5FEB\u6377\u952E\uFF1A\u8BBE\u7F6E \u2192 \u5FEB\u6377\u952E \u2192 \u641C\u7D22 "timestamp"\n\u6BCF\u4E2A\u542F\u7528\u7684\u683C\u5F0F\u90FD\u53EF\u4EE5\u5355\u72EC\u7ED1\u5B9A\u5FEB\u6377\u952E');
   }
 };
 

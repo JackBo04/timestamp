@@ -50,7 +50,6 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 };
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const MONTHS_CN = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
