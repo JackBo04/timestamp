@@ -1,4 +1,4 @@
-import { Plugin, PluginSettingTab, Setting, App, Notice } from 'obsidian';
+import { Plugin, PluginSettingTab, Setting, App, Notice, Editor, EditorPosition } from 'obsidian';
 import { formatTimestamp, FormatId, PluginSettings, DEFAULT_SETTINGS } from './formats';
 
 export default class TimestampPlugin extends Plugin {
@@ -6,27 +6,38 @@ export default class TimestampPlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadSettings();
-    this.buildCommands();
+    this.registerCommands();
     this.addSettingTab(new TimestampSettingTab(this.app, this));
   }
 
-  buildCommands(): void {
-    // Clear old commands by reloading
-    this.commands = {};
-
+  registerCommands(): void {
     this.settings.formats.forEach(format => {
       this.addCommand({
         id: `insert-${format.id}`,
         name: `插入 ${format.name}`,
-        callback: () => this.insertTimestamp(format.id),
+        editorCheckCallback: (checking, editor) => {
+          if (!this.isFormatEnabled(format.id)) {
+            return false;
+          }
+
+          if (!checking) {
+            this.insertTimestamp(editor, format.id);
+          }
+
+          return true;
+        },
       });
     });
 
     this.addCommand({
       id: 'insert-default',
       name: '插入默认格式时间戳',
-      callback: () => this.insertTimestamp(this.settings.defaultFormat),
+      editorCallback: editor => this.insertTimestamp(editor, this.settings.defaultFormat),
     });
+  }
+
+  isFormatEnabled(formatId: FormatId): boolean {
+    return this.settings.formats.some(format => format.id === formatId && format.enabled);
   }
 
   async loadSettings(): Promise<void> {
@@ -45,24 +56,33 @@ export default class TimestampPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
-    this.buildCommands();
   }
 
-  insertTimestamp(formatId: FormatId): void {
-    // Use getActiveViewOfType to get the active markdown view
-    // @ts-ignore - editor property exists on MarkdownView but not in type definitions
-    const view = this.app.workspace.getActiveViewOfType(
-      // @ts-ignore - View constructor not exposed in types
-      this.app.workspace.activeLeaf?.view?.constructor
-    );
-    const editor = view?.editor;
+  insertTimestamp(editor: Editor, formatId: FormatId): void {
     if (!editor) {
       new Notice('无法获取编辑器');
       return;
     }
     const timestamp = formatTimestamp(new Date(), formatId);
-    editor.replaceRange(timestamp, editor.getCursor());
+    const cursor = editor.getCursor();
+    editor.replaceRange(timestamp, cursor);
+    editor.setCursor(getCursorAfterInsert(cursor, timestamp));
   }
+}
+
+function getCursorAfterInsert(cursor: EditorPosition, insertedText: string): EditorPosition {
+  const lines = insertedText.split('\n');
+  if (lines.length === 1) {
+    return {
+      line: cursor.line,
+      ch: cursor.ch + insertedText.length,
+    };
+  }
+
+  return {
+    line: cursor.line + lines.length - 1,
+    ch: lines[lines.length - 1].length,
+  };
 }
 
 class TimestampSettingTab extends PluginSettingTab {
@@ -77,7 +97,7 @@ class TimestampSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setName('Timestamp').setHeading();
+    new Setting(containerEl).setName('常规').setHeading();
 
     // Default format - only show enabled formats
     new Setting(containerEl)
@@ -90,7 +110,7 @@ class TimestampSettingTab extends PluginSettingTab {
         dropdown.setValue(this.plugin.settings.defaultFormat);
         dropdown.onChange(value => {
           this.plugin.settings.defaultFormat = value as FormatId;
-          void this.plugin.saveSettings();
+          this.saveSettings();
         });
       });
 
@@ -113,7 +133,7 @@ class TimestampSettingTab extends PluginSettingTab {
             toggle.setValue(format.enabled);
             toggle.onChange(value => {
               this.plugin.settings.formats[realIdx].enabled = value;
-              void this.plugin.saveSettings();
+              this.saveSettings();
               this.display();
             });
           });
@@ -124,5 +144,12 @@ class TimestampSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('💡 提示')
       .setDesc('为不同格式设置快捷键：设置 → 快捷键 → 搜索 "timestamp"\n每个启用的格式都可以单独绑定快捷键');
+  }
+
+  private saveSettings(): void {
+    this.plugin.saveSettings().catch(error => {
+      console.error('Failed to save timestamp settings', error);
+      new Notice('保存设置失败');
+    });
   }
 }

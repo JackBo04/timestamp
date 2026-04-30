@@ -133,23 +133,33 @@ var TimestampPlugin = class extends import_obsidian.Plugin {
   }
   async onload() {
     await this.loadSettings();
-    this.buildCommands();
+    this.registerCommands();
     this.addSettingTab(new TimestampSettingTab(this.app, this));
   }
-  buildCommands() {
-    this.commands = {};
+  registerCommands() {
     this.settings.formats.forEach((format) => {
       this.addCommand({
         id: `insert-${format.id}`,
         name: `\u63D2\u5165 ${format.name}`,
-        callback: () => this.insertTimestamp(format.id)
+        editorCheckCallback: (checking, editor) => {
+          if (!this.isFormatEnabled(format.id)) {
+            return false;
+          }
+          if (!checking) {
+            this.insertTimestamp(editor, format.id);
+          }
+          return true;
+        }
       });
     });
     this.addCommand({
       id: "insert-default",
       name: "\u63D2\u5165\u9ED8\u8BA4\u683C\u5F0F\u65F6\u95F4\u6233",
-      callback: () => this.insertTimestamp(this.settings.defaultFormat)
+      editorCallback: (editor) => this.insertTimestamp(editor, this.settings.defaultFormat)
     });
+  }
+  isFormatEnabled(formatId) {
+    return this.settings.formats.some((format) => format.id === formatId && format.enabled);
   }
   async loadSettings() {
     const loaded = await this.loadData();
@@ -166,22 +176,31 @@ var TimestampPlugin = class extends import_obsidian.Plugin {
   }
   async saveSettings() {
     await this.saveData(this.settings);
-    this.buildCommands();
   }
-  insertTimestamp(formatId) {
-    const view = this.app.workspace.getActiveViewOfType(
-      // @ts-ignore - View constructor not exposed in types
-      this.app.workspace.activeLeaf?.view?.constructor
-    );
-    const editor = view?.editor;
+  insertTimestamp(editor, formatId) {
     if (!editor) {
       new import_obsidian.Notice("\u65E0\u6CD5\u83B7\u53D6\u7F16\u8F91\u5668");
       return;
     }
     const timestamp = formatTimestamp(/* @__PURE__ */ new Date(), formatId);
-    editor.replaceRange(timestamp, editor.getCursor());
+    const cursor = editor.getCursor();
+    editor.replaceRange(timestamp, cursor);
+    editor.setCursor(getCursorAfterInsert(cursor, timestamp));
   }
 };
+function getCursorAfterInsert(cursor, insertedText) {
+  const lines = insertedText.split("\n");
+  if (lines.length === 1) {
+    return {
+      line: cursor.line,
+      ch: cursor.ch + insertedText.length
+    };
+  }
+  return {
+    line: cursor.line + lines.length - 1,
+    ch: lines[lines.length - 1].length
+  };
+}
 var TimestampSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -190,13 +209,13 @@ var TimestampSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian.Setting(containerEl).setName("Timestamp").setHeading();
+    new import_obsidian.Setting(containerEl).setName("\u5E38\u89C4").setHeading();
     new import_obsidian.Setting(containerEl).setName("\u9ED8\u8BA4\u683C\u5F0F").setDesc("\u6309\u4E0B\u5FEB\u6377\u952E\u65F6\u63D2\u5165\u7684\u683C\u5F0F").addDropdown((dropdown) => {
       this.plugin.settings.formats.filter((f) => f.enabled).forEach((f) => dropdown.addOption(f.id, `${f.name} (${f.group})`));
       dropdown.setValue(this.plugin.settings.defaultFormat);
       dropdown.onChange((value) => {
         this.plugin.settings.defaultFormat = value;
-        void this.plugin.saveSettings();
+        this.saveSettings();
       });
     });
     const groups = ["CN", "US", "EU", "\u901A\u7528"];
@@ -212,13 +231,19 @@ var TimestampSettingTab = class extends import_obsidian.PluginSettingTab {
           toggle.setValue(format.enabled);
           toggle.onChange((value) => {
             this.plugin.settings.formats[realIdx].enabled = value;
-            void this.plugin.saveSettings();
+            this.saveSettings();
             this.display();
           });
         });
       });
     });
     new import_obsidian.Setting(containerEl).setName("\u{1F4A1} \u63D0\u793A").setDesc('\u4E3A\u4E0D\u540C\u683C\u5F0F\u8BBE\u7F6E\u5FEB\u6377\u952E\uFF1A\u8BBE\u7F6E \u2192 \u5FEB\u6377\u952E \u2192 \u641C\u7D22 "timestamp"\n\u6BCF\u4E2A\u542F\u7528\u7684\u683C\u5F0F\u90FD\u53EF\u4EE5\u5355\u72EC\u7ED1\u5B9A\u5FEB\u6377\u952E');
+  }
+  saveSettings() {
+    this.plugin.saveSettings().catch((error) => {
+      console.error("Failed to save timestamp settings", error);
+      new import_obsidian.Notice("\u4FDD\u5B58\u8BBE\u7F6E\u5931\u8D25");
+    });
   }
 };
 
