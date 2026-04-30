@@ -32,7 +32,9 @@ export default class TimestampPlugin extends Plugin {
     this.addCommand({
       id: 'insert-default',
       name: '插入默认格式时间戳',
-      editorCallback: editor => this.insertTimestamp(editor, this.settings.defaultFormat),
+      editorCallback: editor => {
+        this.insertTimestamp(editor, this.settings.defaultFormat);
+      },
     });
   }
 
@@ -54,8 +56,11 @@ export default class TimestampPlugin extends Plugin {
     }
   }
 
-  async saveSettings(): Promise<void> {
-    await this.saveData(this.settings);
+  saveSettings(): void {
+    this.saveData(this.settings).catch(error => {
+      console.error('Failed to save timestamp settings', error);
+      new Notice('保存设置失败');
+    });
   }
 
   insertTimestamp(editor: Editor, formatId: FormatId): void {
@@ -110,7 +115,7 @@ class TimestampSettingTab extends PluginSettingTab {
         dropdown.setValue(this.plugin.settings.defaultFormat);
         dropdown.onChange(value => {
           this.plugin.settings.defaultFormat = value as FormatId;
-          this.saveSettings();
+          this.plugin.saveSettings();
         });
       });
 
@@ -133,7 +138,7 @@ class TimestampSettingTab extends PluginSettingTab {
             toggle.setValue(format.enabled);
             toggle.onChange(value => {
               this.plugin.settings.formats[realIdx].enabled = value;
-              this.saveSettings();
+              this.plugin.saveSettings();
               this.display();
             });
           });
@@ -146,10 +151,4 @@ class TimestampSettingTab extends PluginSettingTab {
       .setDesc('为不同格式设置快捷键：设置 → 快捷键 → 搜索 "timestamp"\n每个启用的格式都可以单独绑定快捷键');
   }
 
-  private saveSettings(): void {
-    this.plugin.saveSettings().catch(error => {
-      console.error('Failed to save timestamp settings', error);
-      new Notice('保存设置失败');
-    });
-  }
 }

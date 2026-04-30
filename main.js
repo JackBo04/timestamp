@@ -155,7 +155,9 @@ var TimestampPlugin = class extends import_obsidian.Plugin {
     this.addCommand({
       id: "insert-default",
       name: "\u63D2\u5165\u9ED8\u8BA4\u683C\u5F0F\u65F6\u95F4\u6233",
-      editorCallback: (editor) => this.insertTimestamp(editor, this.settings.defaultFormat)
+      editorCallback: (editor) => {
+        this.insertTimestamp(editor, this.settings.defaultFormat);
+      }
     });
   }
   isFormatEnabled(formatId) {
@@ -174,8 +176,11 @@ var TimestampPlugin = class extends import_obsidian.Plugin {
       };
     }
   }
-  async saveSettings() {
-    await this.saveData(this.settings);
+  saveSettings() {
+    this.saveData(this.settings).catch((error) => {
+      console.error("Failed to save timestamp settings", error);
+      new import_obsidian.Notice("\u4FDD\u5B58\u8BBE\u7F6E\u5931\u8D25");
+    });
   }
   insertTimestamp(editor, formatId) {
     if (!editor) {
@@ -215,7 +220,7 @@ var TimestampSettingTab = class extends import_obsidian.PluginSettingTab {
       dropdown.setValue(this.plugin.settings.defaultFormat);
       dropdown.onChange((value) => {
         this.plugin.settings.defaultFormat = value;
-        this.saveSettings();
+        this.plugin.saveSettings();
       });
     });
     const groups = ["CN", "US", "EU", "\u901A\u7528"];
@@ -231,19 +236,13 @@ var TimestampSettingTab = class extends import_obsidian.PluginSettingTab {
           toggle.setValue(format.enabled);
           toggle.onChange((value) => {
             this.plugin.settings.formats[realIdx].enabled = value;
-            this.saveSettings();
+            this.plugin.saveSettings();
             this.display();
           });
         });
       });
     });
     new import_obsidian.Setting(containerEl).setName("\u{1F4A1} \u63D0\u793A").setDesc('\u4E3A\u4E0D\u540C\u683C\u5F0F\u8BBE\u7F6E\u5FEB\u6377\u952E\uFF1A\u8BBE\u7F6E \u2192 \u5FEB\u6377\u952E \u2192 \u641C\u7D22 "timestamp"\n\u6BCF\u4E2A\u542F\u7528\u7684\u683C\u5F0F\u90FD\u53EF\u4EE5\u5355\u72EC\u7ED1\u5B9A\u5FEB\u6377\u952E');
-  }
-  saveSettings() {
-    this.plugin.saveSettings().catch((error) => {
-      console.error("Failed to save timestamp settings", error);
-      new import_obsidian.Notice("\u4FDD\u5B58\u8BBE\u7F6E\u5931\u8D25");
-    });
   }
 };
 
