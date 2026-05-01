@@ -216,7 +216,9 @@ var TimestampSettingTab = class extends import_obsidian.PluginSettingTab {
     containerEl.empty();
     new import_obsidian.Setting(containerEl).setName("\u5E38\u89C4").setHeading();
     new import_obsidian.Setting(containerEl).setName("\u9ED8\u8BA4\u683C\u5F0F").setDesc("\u6309\u4E0B\u5FEB\u6377\u952E\u65F6\u63D2\u5165\u7684\u683C\u5F0F").addDropdown((dropdown) => {
-      this.plugin.settings.formats.filter((f) => f.enabled).forEach((f) => dropdown.addOption(f.id, `${f.name} (${f.group})`));
+      this.plugin.settings.formats.filter((f) => f.enabled).forEach((f) => {
+        dropdown.addOption(f.id, `${f.name} (${f.group})`);
+      });
       dropdown.setValue(this.plugin.settings.defaultFormat);
       dropdown.onChange((value) => {
         this.plugin.settings.defaultFormat = value;

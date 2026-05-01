@@ -111,7 +111,9 @@ class TimestampSettingTab extends PluginSettingTab {
       .addDropdown(dropdown => {
         this.plugin.settings.formats
           .filter(f => f.enabled)
-          .forEach(f => dropdown.addOption(f.id, `${f.name} (${f.group})`));
+          .forEach(f => {
+            dropdown.addOption(f.id, `${f.name} (${f.group})`);
+          });
         dropdown.setValue(this.plugin.settings.defaultFormat);
         dropdown.onChange(value => {
           this.plugin.settings.defaultFormat = value as FormatId;
